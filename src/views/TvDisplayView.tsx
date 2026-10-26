@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { orderRepository } from '../repositories/orderRepository';
+import { useSessionStore } from '../stores/sessionStore';
 import type { Order } from '../types';
-import { ChefHat, Bell, CheckCircle2 } from 'lucide-react';
+import { ChefHat, Bell, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 export const TvDisplayView: React.FC = () => {
+  const { setActiveView } = useSessionStore();
   const [preparingOrders, setPreparingOrders] = useState<Order[]>([]);
   const [readyOrders, setReadyOrders] = useState<Order[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -44,14 +46,23 @@ export const TvDisplayView: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Clock */}
-        <div className="text-right">
-          <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-300">
-            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        {/* Live Clock & Exit Kiosk Button */}
+        <div className="flex items-center space-x-5">
+          <div className="text-right">
+            <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-300">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </div>
+            <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+              {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+            </span>
           </div>
-          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-            {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
-          </span>
+          <button
+            onClick={() => setActiveView('pos')}
+            className="px-3.5 py-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 text-xs font-semibold flex items-center space-x-1.5 border border-emerald-700/50 shadow-sm transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Exit Kiosk</span>
+          </button>
         </div>
       </div>
 
