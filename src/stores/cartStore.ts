@@ -1,20 +1,27 @@
 import { create } from 'zustand';
-import type { CartItem, Product, OrderType } from '../types';
+import type { CartItem, Product, OrderType, DiscountType } from '../types';
+import { accountingService } from '../services/accountingService';
 
 interface CartState {
   items: CartItem[];
   orderType: OrderType;
-  discountRate: number; // e.g., 0.10 for 10%
+  discountType: DiscountType;
+  discountRate: number; // For custom rate
+  seniorPwdId: string;
   customerName: string;
   tableNumber: string;
   notes: string;
 
   // Actions
-  addItem: (product: Product, quantity?: number) => void;
+  addItem: (product: Product, quantity?: number, modifiers?: string[]) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  setItemNotes: (productId: string, notes: string) => void;
+  setItemModifiers: (productId: string, modifiers: string[]) => void;
   setOrderType: (type: OrderType) => void;
+  setDiscountType: (type: DiscountType) => void;
   setDiscountRate: (rate: number) => void;
+  setSeniorPwdId: (id: string) => void;
   setCustomerName: (name: string) => void;
   setTableNumber: (table: string) => void;
   setNotes: (notes: string) => void;
@@ -25,17 +32,20 @@ interface CartState {
   getDiscountAmount: () => number;
   getTotal: () => number;
   getItemCount: () => number;
+  getCalculations: () => ReturnType<typeof accountingService.calculateTotals>;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   orderType: 'dine_in',
+  discountType: 'none',
   discountRate: 0,
+  seniorPwdId: '',
   customerName: '',
   tableNumber: '',
   notes: '',
 
-  addItem: (product: Product, quantity = 1) => {
+  addItem: (product: Product, quantity = 1, modifiers = []) => {
     set((state) => {
       const existingIndex = state.items.findIndex((item) => item.product.id === product.id);
       if (existingIndex > -1) {
@@ -50,10 +60,13 @@ export const useCartStore = create<CartState>((set, get) => ({
         return { items: nextItems };
       }
 
+      const unitCost = product.cost || Math.round(product.price * 0.35);
       const newItem: CartItem = {
         product,
         quantity,
         unitPrice: product.price,
+        cost: unitCost,
+        modifiers,
         itemTotal: product.price * quantity,
       };
       return { items: [...state.items, newItem] };
@@ -84,8 +97,26 @@ export const useCartStore = create<CartState>((set, get) => ({
     }));
   },
 
+  setItemNotes: (productId: string, notes: string) => {
+    set((state) => ({
+      items: state.items.map((item) =>
+        item.product.id === productId ? { ...item, notes } : item
+      ),
+    }));
+  },
+
+  setItemModifiers: (productId: string, modifiers: string[]) => {
+    set((state) => ({
+      items: state.items.map((item) =>
+        item.product.id === productId ? { ...item, modifiers } : item
+      ),
+    }));
+  },
+
   setOrderType: (type: OrderType) => set({ orderType: type }),
+  setDiscountType: (type: DiscountType) => set({ discountType: type }),
   setDiscountRate: (rate: number) => set({ discountRate: rate }),
+  setSeniorPwdId: (id: string) => set({ seniorPwdId: id }),
   setCustomerName: (name: string) => set({ customerName: name }),
   setTableNumber: (table: string) => set({ tableNumber: table }),
   setNotes: (notes: string) => set({ notes }),
@@ -93,7 +124,9 @@ export const useCartStore = create<CartState>((set, get) => ({
   clearCart: () =>
     set({
       items: [],
+      discountType: 'none',
       discountRate: 0,
+      seniorPwdId: '',
       customerName: '',
       tableNumber: '',
       notes: '',
@@ -103,15 +136,18 @@ export const useCartStore = create<CartState>((set, get) => ({
     return get().items.reduce((acc, item) => acc + item.itemTotal, 0);
   },
 
+  getCalculations: () => {
+    const { getSubtotal, discountType, discountRate } = get();
+    const subtotal = getSubtotal();
+    return accountingService.calculateTotals(subtotal, discountType, discountRate);
+  },
+
   getDiscountAmount: () => {
-    const subtotal = get().getSubtotal();
-    return Math.round(subtotal * get().discountRate * 100) / 100;
+    return get().getCalculations().discountAmount;
   },
 
   getTotal: () => {
-    const subtotal = get().getSubtotal();
-    const discount = get().getDiscountAmount();
-    return Math.max(0, subtotal - discount);
+    return get().getCalculations().total;
   },
 
   getItemCount: () => {

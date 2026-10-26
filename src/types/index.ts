@@ -14,22 +14,26 @@ export interface Product {
   name: string;
   categoryId: CategoryId;
   price: number;
-  cost?: number;
+  cost: number; // Unit cost of goods for COGS and gross margin
   stock: number;
   lowStockThreshold: number;
   sku: string;
   barcode?: string;
   description?: string;
-  image?: string;
+  image?: string; // High-res food/beverage photography URL
   isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
+export type DiscountType = 'none' | 'senior_pwd' | 'member' | 'staff' | 'custom';
+
 export interface CartItem {
   product: Product;
   quantity: number;
   unitPrice: number;
+  cost: number;
+  modifiers?: string[]; // e.g. ["Extra Espresso Shot", "Oat Milk Sub", "Less Sugar"]
   notes?: string;
   itemTotal: number;
 }
@@ -44,8 +48,10 @@ export interface OrderItem {
   name: string;
   categoryId: CategoryId;
   unitPrice: number;
+  cost: number;
   quantity: number;
   subtotal: number;
+  modifiers?: string[];
   notes?: string;
 }
 
@@ -59,9 +65,15 @@ export interface Order {
   orderType: OrderType;
   items: OrderItem[];
   subtotal: number;
-  discountRate: number; // e.g. 0.10 for 10%
+  discountType?: DiscountType;
+  discountRate: number; // e.g. 0.20 for 20%
   discountAmount: number;
+  seniorPwdId?: string; // Senior Citizen or PWD identification ID
+  vatableSales?: number;
+  vatExemptSales?: number;
   taxAmount: number;
+  cogsTotal?: number; // Total Cost of Goods Sold for this order
+  grossProfit?: number; // Total revenue - COGS
   total: number;
   paymentMethod: PaymentMethod;
   amountPaid: number;
@@ -72,6 +84,55 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   synced: boolean;
+}
+
+export type CashMovementType =
+  | 'opening_float'
+  | 'pay_in'
+  | 'pay_out'
+  | 'cash_drop'
+  | 'closing_reconciliation';
+
+export interface CashDrawerMovement {
+  id: string;
+  type: CashMovementType;
+  amount: number;
+  reason: string;
+  cashierId: string;
+  cashierName: string;
+  timestamp: string;
+  expectedAmount?: number;
+  actualCounted?: number;
+  difference?: number; // overage (+) or shortage (-)
+}
+
+export interface CashDrawerSummary {
+  openingFloat: number;
+  totalCashSales: number;
+  totalPayIns: number;
+  totalPayOuts: number;
+  totalCashDrops: number;
+  expectedDrawerCash: number;
+  lastCountedCash?: number;
+  lastDifference?: number;
+}
+
+export interface AccountingSummary {
+  grossSales: number;
+  discounts: number;
+  netSales: number;
+  cogs: number;
+  grossProfit: number;
+  grossMarginPercent: number;
+  vatableSales: number;
+  vatExemptSales: number;
+  vatAmount: number;
+  totalOrders: number;
+  averageTicket: number;
+  cashSales: number;
+  cardSales: number;
+  gcashSales: number;
+  mayaSales: number;
 }
 
 export type InventoryMovementType = 'sale' | 'restock' | 'adjustment' | 'waste' | 'initial';

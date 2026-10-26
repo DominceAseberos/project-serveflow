@@ -214,7 +214,7 @@ async function runAudit() {
     // Apply 10% Member discount
     const discountSelect = await page.$('select');
     if (discountSelect) {
-      await discountSelect.select('0.1');
+      await discountSelect.select('member');
       await sleep(300);
       console.log('  ✓ Applied 10% Member discount.');
     }
@@ -290,6 +290,44 @@ async function runAudit() {
       if (text && text.includes('Start New Order')) {
         await btn.click();
         await sleep(500);
+        break;
+      }
+    }
+
+    // ----------------------------------------------------
+    // TEST 3B: CASH DRAWER & PETTY CASH FLOW
+    // ----------------------------------------------------
+    console.log('\n[TEST 3B] Testing Cash Drawer & Petty Cash Management...');
+    const headerBtns = await page.$$('header button');
+    for (const btn of headerBtns) {
+      const text = await page.evaluate((el) => el.textContent, btn);
+      if (text && text.includes('Cash Drawer')) {
+        await btn.click();
+        await sleep(600);
+        console.log('  ✓ Opened Cash Drawer & Float Management Modal.');
+        break;
+      }
+    }
+
+    // Switch to Record Movement tab
+    const drawerTabs = await page.$$('button');
+    for (const btn of drawerTabs) {
+      const text = await page.evaluate((el) => el.textContent, btn);
+      if (text && text.includes('Record Movement')) {
+        await btn.click();
+        await sleep(400);
+        break;
+      }
+    }
+
+    // Close Cash Drawer modal
+    const closeBtns = await page.$$('button');
+    for (const btn of closeBtns) {
+      const text = await page.evaluate((el) => el.textContent, btn);
+      if (text && text.trim() === 'Close') {
+        await btn.click();
+        await sleep(400);
+        console.log('  ✓ Verified Cash Drawer modal and closed.');
         break;
       }
     }

@@ -9,9 +9,11 @@ import {
   User,
   Hash,
   Percent,
+  MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
 import { useCartStore } from '../../stores/cartStore';
-import type { PaymentMethod } from '../../types';
+import type { PaymentMethod, DiscountType } from '../../types';
 
 interface CartDrawerProps {
   onPayClick: (paymentDetails: {
@@ -33,30 +35,46 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const {
     items,
     orderType,
-    discountRate,
+    discountType,
+    seniorPwdId,
     customerName,
     tableNumber,
     updateQuantity,
     removeItem,
+    setItemNotes,
     setOrderType,
-    setDiscountRate,
+    setDiscountType,
+    setSeniorPwdId,
     setCustomerName,
     setTableNumber,
     clearCart,
     getSubtotal,
-    getDiscountAmount,
-    getTotal,
+    getCalculations,
     getItemCount,
   } = useCartStore();
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountPaidInput, setAmountPaidInput] = useState<string>('');
   const [referenceNo, setReferenceNo] = useState<string>('');
+  const [editingNotesProductId, setEditingNotesProductId] = useState<string | null>(null);
+  const [activeNoteText, setActiveNoteText] = useState('');
 
+  const calculations = getCalculations();
   const subtotal = getSubtotal();
-  const discountAmount = getDiscountAmount();
-  const total = getTotal();
+  const total = calculations.total;
   const itemCount = getItemCount();
+
+  const handleOpenNotes = (productId: string, currentNotes?: string) => {
+    setEditingNotesProductId(productId);
+    setActiveNoteText(currentNotes || '');
+  };
+
+  const handleSaveNotes = () => {
+    if (editingNotesProductId) {
+      setItemNotes(editingNotesProductId, activeNoteText.trim());
+      setEditingNotesProductId(null);
+    }
+  };
 
   const handlePay = () => {
     if (items.length === 0) return;
@@ -183,46 +201,67 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           items.map((item) => (
             <div
               key={item.product.id}
-              className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors"
+              className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors space-y-1.5"
             >
-              <div className="min-w-0 flex-1 pr-2">
-                <p className="text-sm font-bold text-slate-800 truncate">{item.product.name}</p>
-                <p className="text-xs text-slate-400">
-                  ₱{item.unitPrice.toFixed(2)} × {item.quantity}
-                </p>
-              </div>
-
-              {/* Quantity Controls */}
-              <div className="flex items-center space-x-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                  className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="w-6 text-center text-xs font-bold text-slate-800">
-                  {item.quantity}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                  className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
-
-              {/* Price & Remove */}
-              <div className="text-right pl-3 shrink-0">
-                <div className="text-sm font-extrabold text-slate-900">
-                  ₱{item.itemTotal.toFixed(2)}
+              <div className="flex items-center justify-between">
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-sm font-bold text-slate-800 truncate">{item.product.name}</p>
+                  <p className="text-xs text-slate-400">
+                    ₱{item.unitPrice.toFixed(2)} × {item.quantity}
+                  </p>
                 </div>
+
+                {/* Quantity Controls */}
+                <div className="flex items-center space-x-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                    className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="w-6 text-center text-xs font-bold text-slate-800">
+                    {item.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                    className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {/* Price & Remove */}
+                <div className="text-right pl-3 shrink-0">
+                  <div className="text-sm font-extrabold text-slate-900">
+                    ₱{item.itemTotal.toFixed(2)}
+                  </div>
+                  <button
+                    onClick={() => removeItem(item.product.id)}
+                    className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Special Instructions / Notes Badge */}
+              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100">
+                {item.notes ? (
+                  <span className="text-emerald-700 font-medium truncate flex items-center gap-1">
+                    <MessageSquare className="w-3 h-3" />
+                    {item.notes}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic">No instructions</span>
+                )}
                 <button
-                  onClick={() => removeItem(item.product.id)}
-                  className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
+                  type="button"
+                  onClick={() => handleOpenNotes(item.product.id, item.notes)}
+                  className="text-emerald-700 hover:underline font-bold text-[10px]"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  {item.notes ? 'Edit note' : '+ Add Note / Modifier'}
                 </button>
               </div>
             </div>
@@ -230,49 +269,129 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         )}
       </div>
 
+      {/* Line Item Note Edit Modal */}
+      {editingNotesProductId && (
+        <div className="p-3 bg-emerald-50 border-t border-emerald-200 text-xs space-y-2">
+          <div className="flex justify-between items-center font-bold text-emerald-900">
+            <span>Special Instructions / Modifier:</span>
+            <button onClick={() => setEditingNotesProductId(null)} className="text-slate-400">✕</button>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {['Less Ice', 'No Sugar', 'Oat Milk Sub', 'Extra Shot', 'Warm'].map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setActiveNoteText((prev) => (prev ? `${prev}, ${opt}` : opt))}
+                className="px-2 py-0.5 bg-white border border-emerald-300 rounded text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
+              >
+                +{opt}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={activeNoteText}
+            onChange={(e) => setActiveNoteText(e.target.value)}
+            placeholder="Type custom note (e.g. separate dressing)"
+            className="w-full px-2.5 py-1 text-xs bg-white border border-emerald-300 rounded focus:outline-hidden"
+          />
+          <div className="flex justify-end gap-1">
+            <button
+              type="button"
+              onClick={handleSaveNotes}
+              className="px-3 py-1 bg-emerald-700 text-white rounded font-bold text-xs"
+            >
+              Save Note
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Bill & Payment Drawer Footer */}
       <div className="border-t border-slate-200 bg-white p-4 space-y-3.5 shrink-0 shadow-lg">
         {/* Subtotal & Discount Selection */}
-        <div className="space-y-1.5 text-sm">
+        <div className="space-y-1.5 text-xs sm:text-sm">
           <div className="flex justify-between text-slate-600">
-            <span>Subtotal</span>
+            <span>Subtotal (Gross)</span>
             <span className="font-semibold text-slate-800">₱{subtotal.toFixed(2)}</span>
           </div>
 
+          {/* Discount Category Selector */}
           <div className="flex items-center justify-between">
             <span className="flex items-center text-slate-600">
               <Percent className="w-3.5 h-3.5 mr-1 text-slate-400" />
               Discount
             </span>
             <select
-              value={discountRate}
-              onChange={(e) => setDiscountRate(parseFloat(e.target.value))}
-              className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 font-medium text-slate-700 focus:outline-hidden"
+              value={discountType}
+              onChange={(e) => setDiscountType(e.target.value as DiscountType)}
+              className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 font-bold text-slate-700 focus:outline-hidden"
             >
-              <option value="0">₱ 0 (None)</option>
-              <option value="0.05">5% Promo</option>
-              <option value="0.10">10% Member</option>
-              <option value="0.20">20% Senior / PWD</option>
+              <option value="none">₱ 0 (None)</option>
+              <option value="member">10% Regular Member</option>
+              <option value="staff">15% Staff / Partner</option>
+              <option value="senior_pwd">20% Senior Citizen / PWD (RA 9994)</option>
             </select>
           </div>
 
-          {discountAmount > 0 && (
-            <div className="flex justify-between text-xs text-emerald-700 font-medium">
-              <span>Discount savings</span>
-              <span>- ₱{discountAmount.toFixed(2)}</span>
+          {/* Senior / PWD ID Input (Required under Philippine Law) */}
+          {discountType === 'senior_pwd' && (
+            <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-bold text-amber-900">
+                <span className="flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                  Senior / PWD OSCA ID:
+                </span>
+                <span className="text-[10px] text-amber-700 font-semibold">12% VAT Exempt + 20% Off</span>
+              </div>
+              <input
+                type="text"
+                placeholder="Enter OSCA ID # / PWD Book ID"
+                value={seniorPwdId}
+                onChange={(e) => setSeniorPwdId(e.target.value)}
+                className="w-full px-2 py-1 text-xs bg-white border border-amber-300 rounded focus:outline-hidden font-mono"
+              />
             </div>
           )}
 
+          {calculations.discountAmount > 0 && (
+            <div className="flex justify-between text-xs text-emerald-700 font-bold">
+              <span>Discount savings</span>
+              <span>- ₱{calculations.discountAmount.toFixed(2)}</span>
+            </div>
+          )}
+
+          {/* Tax Breakdown */}
+          <div className="text-[11px] text-slate-400 space-y-0.5 pt-1 border-t border-slate-100">
+            {calculations.vatExemptSales > 0 ? (
+              <div className="flex justify-between">
+                <span>VAT-Exempt Sales</span>
+                <span>₱{calculations.vatExemptSales.toFixed(2)}</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span>VATable Sales</span>
+                  <span>₱{calculations.vatableSales.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Output VAT (12%)</span>
+                  <span>₱{calculations.taxAmount.toFixed(2)}</span>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Grand Total */}
-          <div className="pt-2 border-t border-slate-100 flex justify-between items-baseline">
-            <span className="text-base font-extrabold text-slate-800">Total</span>
+          <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline">
+            <span className="text-base font-extrabold text-slate-800">Total Due</span>
             <span className="text-2xl font-black text-emerald-600 tracking-tight">
               ₱{total.toFixed(2)}
             </span>
           </div>
         </div>
 
-        {/* Payment Controls Section (Matches desktop.png) */}
+        {/* Payment Controls Section */}
         <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2.5">
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
@@ -322,7 +441,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons (Matches desktop.png bottom buttons: Save Draft, Send Kitchen, Pay) */}
+        {/* Action Buttons */}
         <div className="grid grid-cols-3 gap-2 pt-1">
           <button
             type="button"
@@ -330,7 +449,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             onClick={() => {
               alert('Order draft saved to local IndexedDB session.');
             }}
-            className="py-2.5 px-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 font-semibold text-xs rounded-xl transition-colors text-center"
+            className="py-2.5 px-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 font-semibold text-xs rounded-xl transition-colors text-center cursor-pointer"
           >
             Save Draft
           </button>
@@ -339,7 +458,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             type="button"
             disabled={items.length === 0}
             onClick={handleSendKitchen}
-            className="py-2.5 px-2 bg-amber-100 hover:bg-amber-200 text-amber-900 disabled:opacity-40 font-bold text-xs rounded-xl transition-colors text-center shadow-xs"
+            className="py-2.5 px-2 bg-amber-100 hover:bg-amber-200 text-amber-900 disabled:opacity-40 font-bold text-xs rounded-xl transition-colors text-center shadow-xs cursor-pointer"
           >
             Send Kitchen
           </button>
@@ -348,7 +467,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             type="button"
             disabled={items.length === 0}
             onClick={handlePay}
-            className="py-2.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 font-bold text-xs rounded-xl transition-colors text-center shadow-sm"
+            className="py-2.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 font-bold text-xs rounded-xl transition-colors text-center shadow-sm cursor-pointer"
           >
             Pay ₱{total.toFixed(2)}
           </button>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Menu,
   Wifi,
@@ -8,11 +8,14 @@ import {
   ShoppingBag,
   ChefHat,
   LayoutDashboard,
+  Banknote,
 } from 'lucide-react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useCartStore } from '../../stores/cartStore';
+import { CashFlowModal } from '../cashflow/CashFlowModal';
 
 export const AdminHeader: React.FC = () => {
+  const [isCashFlowOpen, setIsCashFlowOpen] = useState(false);
   const {
     currentCashier,
     isOnline,
@@ -84,6 +87,16 @@ export const AdminHeader: React.FC = () => {
 
       {/* Right: Offline Status, Sync Heartbeat, Alerts & Profile */}
       <div className="flex items-center space-x-3">
+        {/* Cash Drawer & Shift Reconciliation Button */}
+        <button
+          onClick={() => setIsCashFlowOpen(true)}
+          title="Open Cash Drawer & Shift Float Management"
+          className="px-3 py-1 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/50 text-emerald-200 text-xs font-bold rounded-lg flex items-center space-x-1.5 shadow-xs transition-colors cursor-pointer"
+        >
+          <Banknote className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Cash Drawer</span>
+        </button>
+
         {/* Network & Offline Status Toggle */}
         <button
           onClick={() => setOnlineStatus(!isOnline)}
@@ -150,6 +163,13 @@ export const AdminHeader: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <CashFlowModal
+        isOpen={isCashFlowOpen}
+        onClose={() => setIsCashFlowOpen(false)}
+        cashierId={currentCashier.id}
+        cashierName={currentCashier.name}
+      />
     </header>
   );
 };

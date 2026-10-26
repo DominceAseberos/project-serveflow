@@ -91,6 +91,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 <span>{order.customerName}</span>
               </div>
             )}
+            {order.seniorPwdId && (
+              <div className="flex justify-between text-amber-800 font-bold">
+                <span>SC / PWD ID:</span>
+                <span>{order.seniorPwdId} (RA 9994)</span>
+              </div>
+            )}
           </div>
 
           {/* Items Table */}
@@ -101,14 +107,21 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <span>AMOUNT</span>
             </div>
             {order.items.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-baseline text-[11px]">
-                <div className="pr-2 max-w-[150px] truncate">
-                  <span className="font-semibold">{item.name}</span>
+              <div key={idx} className="space-y-0.5 text-[11px]">
+                <div className="flex justify-between items-baseline">
+                  <div className="pr-2 max-w-[150px] truncate">
+                    <span className="font-semibold">{item.name}</span>
+                  </div>
+                  <div className="text-slate-500">
+                    {item.quantity} × {item.unitPrice.toFixed(0)}
+                  </div>
+                  <div className="font-bold">₱{item.subtotal.toFixed(2)}</div>
                 </div>
-                <div className="text-slate-500">
-                  {item.quantity} × {item.unitPrice.toFixed(0)}
-                </div>
-                <div className="font-bold">₱{item.subtotal.toFixed(2)}</div>
+                {item.notes && (
+                  <div className="text-[10px] text-emerald-700 italic pl-1">
+                    ↳ Note: {item.notes}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -125,14 +138,23 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 <span>- ₱{order.discountAmount.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between text-slate-500 text-[10px]">
-              <span>VATable Sales:</span>
-              <span>₱{vatableSales.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-slate-500 text-[10px]">
-              <span>VAT Amount (12%):</span>
-              <span>₱{order.taxAmount.toFixed(2)}</span>
-            </div>
+            {order.vatExemptSales && order.vatExemptSales > 0 ? (
+              <div className="flex justify-between text-slate-500 text-[10px]">
+                <span>VAT-Exempt Sales (SC/PWD):</span>
+                <span>₱{order.vatExemptSales.toFixed(2)}</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between text-slate-500 text-[10px]">
+                  <span>VATable Sales:</span>
+                  <span>₱{(order.vatableSales || vatableSales).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-500 text-[10px]">
+                  <span>VAT Amount (12%):</span>
+                  <span>₱{order.taxAmount.toFixed(2)}</span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between text-sm font-bold pt-1.5 border-t border-slate-200">
               <span>TOTAL DUE:</span>
               <span className="text-base text-emerald-800">₱{order.total.toFixed(2)}</span>

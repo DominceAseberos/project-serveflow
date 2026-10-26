@@ -5,8 +5,9 @@ import type {
   Order,
   InventoryMovement,
   SyncQueueItem,
+  CashDrawerMovement,
 } from '../types';
-import { INITIAL_CATEGORIES, INITIAL_PRODUCTS, INITIAL_SETTINGS } from './seedData';
+import { INITIAL_CATEGORIES, INITIAL_PRODUCTS, INITIAL_SETTINGS, INITIAL_CASH_MOVEMENTS } from './seedData';
 
 export interface SettingRecord {
   key: string;
@@ -20,6 +21,7 @@ export class ServeFlowDatabase extends Dexie {
   inventoryMovements!: EntityTable<InventoryMovement, 'id'>;
   syncQueue!: EntityTable<SyncQueueItem, 'id'>;
   settings!: EntityTable<SettingRecord, 'key'>;
+  cashDrawerMovements!: EntityTable<CashDrawerMovement, 'id'>;
 
   constructor() {
     super('ServeFlowPOS_DB');
@@ -31,6 +33,16 @@ export class ServeFlowDatabase extends Dexie {
       inventoryMovements: 'id, productId, type, createdAt',
       syncQueue: 'id, entityTable, entityId, action, status, createdAt',
       settings: 'key',
+    });
+
+    this.version(2).stores({
+      products: 'id, categoryId, name, price, stock, sku, isAvailable',
+      categories: 'id, sortOrder',
+      orders: 'id, orderNumber, cashierId, status, paymentStatus, paymentMethod, createdAt, synced',
+      inventoryMovements: 'id, productId, type, createdAt',
+      syncQueue: 'id, entityTable, entityId, action, status, createdAt',
+      settings: 'key',
+      cashDrawerMovements: 'id, type, cashierId, timestamp',
     });
   }
 
@@ -46,6 +58,9 @@ export class ServeFlowDatabase extends Dexie {
 
       // Seed initial settings
       await this.settings.put({ key: 'store_settings', value: INITIAL_SETTINGS });
+
+      // Seed initial cash movement
+      await this.cashDrawerMovements.bulkAdd(INITIAL_CASH_MOVEMENTS);
 
       // Seed a few initial completed sample orders to populate AdminLTE dashboard immediately
       const now = new Date();
@@ -64,6 +79,7 @@ export class ServeFlowDatabase extends Dexie {
               name: 'Spanish Latte',
               categoryId: 'CAT-COFFEE',
               unitPrice: 145,
+              cost: 42,
               quantity: 2,
               subtotal: 290,
             },
@@ -72,6 +88,7 @@ export class ServeFlowDatabase extends Dexie {
               name: 'Banana Loaf Slice',
               categoryId: 'CAT-PASTRY',
               unitPrice: 85,
+              cost: 32,
               quantity: 1,
               subtotal: 85,
             },
@@ -104,6 +121,7 @@ export class ServeFlowDatabase extends Dexie {
               name: 'Chicken Pesto Pasta',
               categoryId: 'CAT-MEALS',
               unitPrice: 220,
+              cost: 85,
               quantity: 1,
               subtotal: 220,
             },
@@ -112,6 +130,7 @@ export class ServeFlowDatabase extends Dexie {
               name: 'Caramel Macchiato',
               categoryId: 'CAT-COFFEE',
               unitPrice: 160,
+              cost: 48,
               quantity: 1,
               subtotal: 160,
             },
@@ -145,6 +164,7 @@ export class ServeFlowDatabase extends Dexie {
               name: 'Truffle Mushroom Melt',
               categoryId: 'CAT-MEALS',
               unitPrice: 245,
+              cost: 95,
               quantity: 2,
               subtotal: 490,
             },
@@ -153,6 +173,7 @@ export class ServeFlowDatabase extends Dexie {
               name: 'Single Origin Cold Brew',
               categoryId: 'CAT-COFFEE',
               unitPrice: 130,
+              cost: 35,
               quantity: 2,
               subtotal: 260,
             },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, X } from 'lucide-react';
 import { productRepository } from '../repositories/productRepository';
 import { settingsRepository } from '../repositories/settingsRepository';
 import { orderService } from '../services/orderService';
@@ -22,6 +22,7 @@ export const PosView: React.FC = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
   const [pendingPaymentParams, setPendingPaymentParams] = useState<{
     method: PaymentMethod;
     paid: number;
@@ -29,8 +30,18 @@ export const PosView: React.FC = () => {
     isKitchen?: boolean;
   }>({ method: 'cash', paid: 0 });
 
-  const { items, orderType, discountRate, customerName, tableNumber, addItem, clearCart, getTotal } =
-    useCartStore();
+  const {
+    items,
+    orderType,
+    discountType,
+    discountRate,
+    seniorPwdId,
+    customerName,
+    tableNumber,
+    addItem,
+    clearCart,
+    getTotal,
+  } = useCartStore();
   const { currentCashier, setLowStockCount } = useSessionStore();
 
   const loadData = async () => {
@@ -79,7 +90,9 @@ export const PosView: React.FC = () => {
       const order = await orderService.processCheckout({
         items,
         orderType,
+        discountType,
         discountRate,
+        seniorPwdId,
         paymentMethod: details.paymentMethod,
         amountPaid: details.amountPaid,
         cashierId: currentCashier.id,
@@ -109,7 +122,9 @@ export const PosView: React.FC = () => {
       const order = await orderService.processCheckout({
         items,
         orderType,
+        discountType,
         discountRate,
+        seniorPwdId,
         paymentMethod: details.paymentMethod,
         amountPaid: details.amountPaid,
         cashierId: currentCashier.id,
@@ -202,6 +217,7 @@ export const PosView: React.FC = () => {
                   key={product.id}
                   product={product}
                   onAddToCart={(p) => addItem(p)}
+                  onPreviewImage={(p) => setPreviewProduct(p)}
                 />
               ))}
             </div>
@@ -239,6 +255,58 @@ export const PosView: React.FC = () => {
             clearCart();
           }}
         />
+      )}
+      {/* High-Resolution Food Image Preview Modal */}
+      {previewProduct && (
+        <div
+          onClick={() => setPreviewProduct(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl overflow-hidden max-w-lg w-full shadow-2xl border border-slate-700"
+          >
+            <div className="relative aspect-4/3 w-full bg-slate-900">
+              <img
+                src={previewProduct.image}
+                alt={previewProduct.name}
+                className="w-full h-full object-cover"
+              />
+              <button
+                onClick={() => setPreviewProduct(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/90 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="px-2.5 py-1 rounded-md text-xs font-bold uppercase bg-slate-100 text-slate-700">
+                  {previewProduct.categoryId}
+                </span>
+                <span className="text-xl font-black text-slate-900">
+                  ₱{previewProduct.price.toFixed(2)}
+                </span>
+              </div>
+              <h2 className="text-xl font-extrabold text-slate-900 mb-2">
+                {previewProduct.name}
+              </h2>
+              <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                {previewProduct.description || 'Artisan handcrafted café recipe prepared fresh daily.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  addItem(previewProduct);
+                  setPreviewProduct(null);
+                }}
+                className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Add to Current Order (₱{previewProduct.price.toFixed(2)})</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -3,12 +3,15 @@ import { productRepository } from '../repositories/productRepository';
 import { inventoryRepository } from '../repositories/inventoryRepository';
 import { syncQueueRepository } from '../repositories/syncQueueRepository';
 import { settingsRepository } from '../repositories/settingsRepository';
-import type { CartItem, Order, OrderType, PaymentMethod } from '../types';
+import { accountingService } from './accountingService';
+import type { CartItem, Order, OrderType, PaymentMethod, DiscountType } from '../types';
 
 export interface CheckoutInput {
   items: CartItem[];
   orderType: OrderType;
-  discountRate: number;
+  discountType?: DiscountType;
+  discountRate?: number;
+  seniorPwdId?: string;
   paymentMethod: PaymentMethod;
   amountPaid: number;
   cashierId: string;
@@ -27,23 +30,30 @@ export class OrderService {
 
     const settings = await settingsRepository.getSettings();
 
-    // 1. Verify and deduct inventory for each item
+    // 1. Verify inventory availability
     for (const item of input.items) {
       const prod = await productRepository.getById(item.product.id);
       if (!prod) {
         throw new Error(`Product ${item.product.name} is no longer available.`);
       }
       if (prod.stock < item.quantity) {
-        throw new Error(`Insufficient stock for ${prod.name} (Available: ${prod.stock}, Requested: ${item.quantity}).`);
+        throw new Error(
+          `Insufficient stock for ${prod.name} (Available: ${prod.stock}, Requested: ${item.quantity}).`
+        );
       }
     }
 
-    // 2. Calculate subtotal, discount, tax, total
+    // 2. Calculate subtotal, legal taxes, and discounts via accounting service
     const subtotal = input.items.reduce((acc, item) => acc + item.itemTotal, 0);
-    const discountAmount = Math.round(subtotal * input.discountRate * 100) / 100;
-    const netAmount = subtotal - discountAmount;
-    const taxAmount = Math.round((netAmount * settings.taxRate / (1 + settings.taxRate)) * 100) / 100;
-    const total = Math.max(0, netAmount);
+    const discType: DiscountType = input.discountType || (input.discountRate ? 'custom' : 'none');
+    const calc = accountingService.calculateTotals(
+      subtotal,
+      discType,
+      input.discountRate || 0,
+      settings.taxRate
+    );
+
+    const total = calc.total;
 
     if (input.paymentMethod === 'cash' && input.amountPaid < total) {
       throw new Error(`Amount paid (₱${input.amountPaid}) cannot be less than total (₱${total}).`);
@@ -53,7 +63,15 @@ export class OrderService {
     const count = (await orderRepository.getAll()).length + 1;
     const orderNumber = `SF-${new Date().getFullYear()}-${count.toString().padStart(4, '0')}`;
 
-    // 3. Assemble order entity
+    // 3. Compute COGS (Cost of Goods Sold) and Gross Profit
+    let cogsTotal = 0;
+    for (const item of input.items) {
+      const unitCost = item.product.cost || Math.round(item.unitPrice * 0.35);
+      cogsTotal += unitCost * item.quantity;
+    }
+    const grossProfit = Math.round((total - cogsTotal) * 100) / 100;
+
+    // 4. Assemble order entity
     const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const newOrder: Order = {
       id: orderId,
@@ -68,14 +86,22 @@ export class OrderService {
         name: i.product.name,
         categoryId: i.product.categoryId,
         unitPrice: i.unitPrice,
+        cost: i.product.cost || Math.round(i.unitPrice * 0.35),
         quantity: i.quantity,
         subtotal: i.itemTotal,
+        modifiers: i.modifiers,
         notes: i.notes,
       })),
       subtotal,
-      discountRate: input.discountRate,
-      discountAmount,
-      taxAmount,
+      discountType: discType,
+      discountRate: calc.discountRate,
+      discountAmount: calc.discountAmount,
+      seniorPwdId: input.seniorPwdId?.trim() || undefined,
+      vatableSales: calc.vatableSales,
+      vatExemptSales: calc.vatExemptSales,
+      taxAmount: calc.taxAmount,
+      cogsTotal,
+      grossProfit,
       total,
       paymentMethod: input.paymentMethod,
       amountPaid: input.amountPaid,
@@ -88,10 +114,10 @@ export class OrderService {
       synced: false,
     };
 
-    // 4. Save order to IndexedDB
+    // 5. Save order to IndexedDB
     await orderRepository.create(newOrder);
 
-    // 5. Deduct inventory & record movement logs
+    // 6. Deduct inventory & record movement logs
     for (const item of input.items) {
       const prevStock = item.product.stock;
       const newStock = await productRepository.updateStock(item.product.id, -item.quantity);
@@ -107,7 +133,7 @@ export class OrderService {
       );
     }
 
-    // 6. Enqueue durable offline synchronization mutation
+    // 7. Enqueue durable offline synchronization mutation
     await syncQueueRepository.enqueue('orders', newOrder.id, 'INSERT', newOrder);
 
     return newOrder;

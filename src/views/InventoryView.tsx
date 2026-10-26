@@ -3,6 +3,7 @@ import {
   Plus,
   AlertTriangle,
   Search,
+  X,
 } from 'lucide-react';
 import { ContentHeader } from '../components/layout/ContentHeader';
 import { Card } from '../components/common/Card';
@@ -17,6 +18,9 @@ export const InventoryView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('ALL');
 
+  // Preview full image
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
+
   // Adjust stock modal
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [adjustQty, setAdjustQty] = useState<number>(10);
@@ -28,10 +32,13 @@ export const InventoryView: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newProductName, setNewProductName] = useState('');
   const [newProductCategory, setNewProductCategory] = useState('CAT-COFFEE');
-  const [newProductPrice, setNewProductPrice] = useState('120');
-  const [newProductStock, setNewProductStock] = useState('20');
+  const [newProductPrice, setNewProductPrice] = useState('140');
+  const [newProductCost, setNewProductCost] = useState('45');
+  const [newProductStock, setNewProductStock] = useState('25');
   const [newProductThreshold, setNewProductThreshold] = useState('5');
   const [newProductSku, setNewProductSku] = useState('');
+  const [newProductImage, setNewProductImage] = useState('');
+  const [newProductDesc, setNewProductDesc] = useState('');
 
   const loadData = async () => {
     const allProducts = await productRepository.getAll();
@@ -69,18 +76,26 @@ export const InventoryView: React.FC = () => {
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const price = parseFloat(newProductPrice) || 0;
+      const cost = parseFloat(newProductCost) || Math.round(price * 0.35);
+
       await productRepository.create({
         name: newProductName.trim(),
         categoryId: newProductCategory,
-        price: parseFloat(newProductPrice) || 0,
+        price,
+        cost,
         stock: parseInt(newProductStock, 10) || 0,
         lowStockThreshold: parseInt(newProductThreshold, 10) || 5,
         sku: newProductSku.trim() || `SF-${Date.now().toString().slice(-4)}`,
+        image: newProductImage.trim() || undefined,
+        description: newProductDesc.trim() || undefined,
         isAvailable: true,
       });
 
       setIsAddModalOpen(false);
       setNewProductName('');
+      setNewProductImage('');
+      setNewProductDesc('');
       await loadData();
     } catch (err: any) {
       alert(`Could not create product: ${err.message}`);
@@ -100,68 +115,75 @@ export const InventoryView: React.FC = () => {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <ContentHeader
         title="Inventory & Stock Management"
-        subtitle="Track ingredient stock, log deliveries, and manage product catalog"
+        subtitle="Real-time stock ledger, unit food cost accounting, and re-order alerts"
         breadcrumbs={[{ label: 'Home' }, { label: 'Inventory', active: true }]}
         actions={
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-colors"
+            className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Add New Product</span>
+            <span>Add Menu Product</span>
           </button>
         }
       />
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search items by name or SKU..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:border-emerald-600 focus:outline-hidden"
-          />
-        </div>
+      <Card variant="outline">
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search by product name or SKU..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-600"
+            />
+          </div>
 
-        <div className="flex items-center space-x-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-          <button
-            type="button"
-            onClick={() => setSelectedCat('ALL')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 ${
-              selectedCat === 'ALL' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            All
-          </button>
-          {categories.map((c) => (
+          <div className="flex items-center space-x-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
             <button
-              key={c.id}
-              type="button"
-              onClick={() => setSelectedCat(c.id)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 ${
-                selectedCat === c.id ? 'bg-emerald-800 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              onClick={() => setSelectedCat('ALL')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                selectedCat === 'ALL'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {c.name}
+              All Items ({products.length})
             </button>
-          ))}
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCat(c.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                  selectedCat === c.id
+                    ? 'bg-emerald-800 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </Card>
 
-      {/* Main Inventory Table */}
-      <Card title="Product Catalog & Current Stock" variant="primary">
+      {/* Inventory Catalog Table */}
+      <Card title="Menu Item Master Ledger" variant="outline">
         <div className="overflow-x-auto -mx-5 -my-5">
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
               <tr>
+                <th className="px-5 py-3">Photo</th>
                 <th className="px-5 py-3">Product Name</th>
                 <th className="px-5 py-3">SKU</th>
                 <th className="px-5 py-3">Category</th>
-                <th className="px-5 py-3">Unit Price</th>
-                <th className="px-5 py-3">Stock Level</th>
+                <th className="px-5 py-3">Selling Price</th>
+                <th className="px-5 py-3">Unit Cost (COGS)</th>
+                <th className="px-5 py-3">Gross Margin</th>
+                <th className="px-5 py-3">Stock Units</th>
                 <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3 text-right">Actions</th>
               </tr>
@@ -170,21 +192,46 @@ export const InventoryView: React.FC = () => {
               {filteredProducts.map((p) => {
                 const isLow = p.stock <= p.lowStockThreshold;
                 const isOut = p.stock <= 0;
+                const cost = p.cost || Math.round(p.price * 0.35);
+                const margin = p.price > 0 ? ((p.price - cost) / p.price) * 100 : 0;
+
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                    {/* Thumbnail */}
+                    <td className="px-5 py-2.5">
+                      <div
+                        onClick={() => p.image && setPreviewImage({ url: p.image, title: p.name })}
+                        className={`w-11 h-11 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 ${
+                          p.image ? 'cursor-pointer hover:ring-2 hover:ring-emerald-500' : ''
+                        }`}
+                        title={p.image ? 'Click to preview image' : 'No photo'}
+                      >
+                        {p.image ? (
+                          <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[10px] font-black text-slate-400">SF</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-5 py-3.5">
                       <span className="font-bold text-slate-900 text-sm block">{p.name}</span>
-                      {p.description && <span className="text-[11px] text-slate-400 block line-clamp-1">{p.description}</span>}
+                      {p.description && (
+                        <span className="text-[11px] text-slate-400 block line-clamp-1">
+                          {p.description}
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-3.5 font-mono text-slate-500">{p.sku}</td>
                     <td className="px-5 py-3.5">
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600">
-                        {p.categoryId}
+                        {p.categoryId.replace('CAT-', '')}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 font-bold text-slate-900">₱{p.price.toFixed(2)}</td>
+                    <td className="px-5 py-3.5 font-semibold text-slate-600">₱{cost.toFixed(2)}</td>
+                    <td className="px-5 py-3.5 font-bold text-emerald-700">{margin.toFixed(0)}%</td>
                     <td className="px-5 py-3.5">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1.5">
                         <span className="font-extrabold text-sm text-slate-800">{p.stock}</span>
                         <span className="text-[10px] text-slate-400">units</span>
                       </div>
@@ -209,7 +256,7 @@ export const InventoryView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleOpenAdjust(p)}
-                        className="px-3 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs"
+                        className="px-3 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs cursor-pointer"
                       >
                         Adjust Stock
                       </button>
@@ -270,13 +317,13 @@ export const InventoryView: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsAdjustModalOpen(false)}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-lg shadow-sm"
+              className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-lg shadow-sm cursor-pointer"
             >
               Confirm Adjustment
             </button>
@@ -289,14 +336,14 @@ export const InventoryView: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Add New Menu Item"
-        subtitle="Register new product into offline Dexie database"
+        subtitle="Register new product with photography and COGS into Dexie"
       >
         <form onSubmit={handleCreateProduct} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Product Name</label>
             <input
               type="text"
-              placeholder="e.g. Iced Hazelnut Oat Latte"
+              placeholder="e.g. Iced Sea Salt Foam Cold Brew"
               value={newProductName}
               onChange={(e) => setNewProductName(e.target.value)}
               className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2"
@@ -320,7 +367,7 @@ export const InventoryView: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Price (₱)</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Selling Price (₱)</label>
               <input
                 type="number"
                 step="0.01"
@@ -332,24 +379,15 @@ export const InventoryView: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Starting Stock</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Unit Cost Price / COGS (₱)</label>
               <input
                 type="number"
-                value={newProductStock}
-                onChange={(e) => setNewProductStock(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Low Alert Level</label>
-              <input
-                type="number"
-                value={newProductThreshold}
-                onChange={(e) => setNewProductThreshold(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2"
+                step="0.01"
+                value={newProductCost}
+                onChange={(e) => setNewProductCost(e.target.value)}
+                className="w-full text-xs font-bold bg-white border border-slate-300 rounded-lg px-3 py-2"
                 required
               />
             </div>
@@ -365,23 +403,105 @@ export const InventoryView: React.FC = () => {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Photo Image URL</label>
+            <input
+              type="url"
+              placeholder="https://images.unsplash.com/photo-..."
+              value={newProductImage}
+              onChange={(e) => setNewProductImage(e.target.value)}
+              className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2"
+            />
+            {newProductImage && (
+              <div className="mt-2 w-20 h-20 rounded-lg overflow-hidden border border-slate-300">
+                <img src={newProductImage} alt="Preview" className="w-full h-full object-cover" />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Short Description</label>
+            <textarea
+              rows={2}
+              placeholder="Recipe notes, ingredients, allergen info..."
+              value={newProductDesc}
+              onChange={(e) => setNewProductDesc(e.target.value)}
+              className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Starting Stock</label>
+              <input
+                type="number"
+                value={newProductStock}
+                onChange={(e) => setNewProductStock(e.target.value)}
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Low Alert Threshold</label>
+              <input
+                type="number"
+                value={newProductThreshold}
+                onChange={(e) => setNewProductThreshold(e.target.value)}
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2"
+                required
+              />
+            </div>
+          </div>
+
           <div className="flex justify-end space-x-2 pt-3">
             <button
               type="button"
               onClick={() => setIsAddModalOpen(false)}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-lg shadow-sm"
+              className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-lg shadow-sm cursor-pointer"
             >
               Save Product
             </button>
           </div>
         </form>
       </Modal>
+
+      {/* Image Zoom Preview Modal */}
+      {previewImage && (
+        <div
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl overflow-hidden max-w-md w-full shadow-2xl"
+          >
+            <div className="relative aspect-4/3 w-full bg-slate-900">
+              <img src={previewImage.url} alt={previewImage.title} className="w-full h-full object-cover" />
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/90"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 flex justify-between items-center">
+              <span className="font-bold text-sm text-slate-900">{previewImage.title}</span>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-xs font-bold rounded-lg text-slate-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
