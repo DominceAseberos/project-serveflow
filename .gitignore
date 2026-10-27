@@ -26,3 +26,9 @@ dist-ssr
 # Test artifacts
 audit-results/
 
+# Build releases
+release/
+*.exe
+*.zip
+*.blockmap
+

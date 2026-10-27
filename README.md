@@ -7,10 +7,19 @@
 [![Tailwind CSS v4](https://img.shields.io/badge/TailwindCSS-v4.3-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Zustand](https://img.shields.io/badge/State-Zustand_5.0-764ABC)](https://zustand-demo.pmnd.rs/)
 [![License](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
+[![Desktop App](https://img.shields.io/badge/Desktop-Windows_.exe-0078D6?logo=windows&logoColor=white)](https://github.com/DominceAseberos/project-serveflow/releases)
+[![Release](https://img.shields.io/badge/Release-v1.0.0-emerald.svg)](https://github.com/DominceAseberos/project-serveflow/releases/tag/v1.0.0)
 [![Offline First](https://img.shields.io/badge/Architecture-100%25_Offline--First-10b981.svg)]()
 
 > **ServeFlow POS is an aggressively offline-first, local-sync Point of Sale (POS), Kitchen Display System (KDS), Cashflow, and TV Customer Kiosk ecosystem designed for cafés, coffee shops, and restaurants.**  
 > Built strictly adhering to the **Repository Pattern** and the **AdminLTE enterprise design system**, ServeFlow runs entirely in the client runtime without requiring a cloud backend for day-to-day operations, complete with **hardware-grade 80mm/58mm thermal receipt printing**, **ESC/POS RJ11 cash drawer kick pulses**, and **Philippine RA 9994 / RA 10754 Senior & PWD tax compliance**.
+
+---
+
+## 💾 Desktop Releases (Windows `.exe`)
+Download pre-built standalone binaries directly from [GitHub Releases (v1.0.0)](https://github.com/DominceAseberos/project-serveflow/releases/tag/v1.0.0):
+- **Windows Setup Installer (`.exe`)**: `ServeFlow-POS-v1.0.0-x64.exe` (Complete POS desktop app with desktop shortcut and start menu launcher)
+- **Windows Standalone Portable (`.zip`)**: `ServeFlow-POS-v1.0.0-win-x64-portable.zip` (Zero installation required — extract and run on any cash register, counter terminal, or laptop)
 
 ---
 
