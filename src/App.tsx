@@ -67,7 +67,16 @@ export const App: React.FC = () => {
     );
   }
 
-  // Full-screen Kiosk mode for TV Display
+  // Standalone TV Kiosk Mode (When opened via ?view=tv on a Smart TV, Chromecast, or Second Monitor)
+  const isStandaloneTv =
+    new URLSearchParams(window.location.search).get('view') === 'tv' ||
+    window.location.hash === '#tv';
+
+  if (isStandaloneTv) {
+    return <TvDisplayView standalone />;
+  }
+
+  // Full-screen Kiosk mode for TV Display within main cashier app
   if (activeView === 'tv') {
     return (
       <div className="min-h-screen flex flex-col">

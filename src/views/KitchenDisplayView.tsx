@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle2, RefreshCw, Flame } from 'lucide-react';
 import { ContentHeader } from '../components/layout/ContentHeader';
 import { orderRepository } from '../repositories/orderRepository';
+import { tvBroadcast } from '../utils/tvBroadcast';
 import type { Order, OrderStatus } from '../types';
 
 export const KitchenDisplayView: React.FC = () => {
@@ -25,7 +26,15 @@ export const KitchenDisplayView: React.FC = () => {
   }, []);
 
   const handleUpdateStatus = async (orderId: string, nextStatus: OrderStatus) => {
+    const targetOrder = orders.find((o) => o.id === orderId);
     await orderRepository.updateStatus(orderId, nextStatus);
+
+    if (nextStatus === 'ready' && targetOrder) {
+      tvBroadcast.broadcastOrderReady(targetOrder.orderNumber, targetOrder.customerName, targetOrder.id);
+    } else {
+      tvBroadcast.broadcastOrderUpdate();
+    }
+
     await loadKdsOrders();
   };
 

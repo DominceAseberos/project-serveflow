@@ -9,13 +9,16 @@ import {
   ChefHat,
   LayoutDashboard,
   Banknote,
+  Cast,
 } from 'lucide-react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useCartStore } from '../../stores/cartStore';
 import { CashFlowModal } from '../cashflow/CashFlowModal';
+import { TvConnectModal } from '../tv/TvConnectModal';
 
 export const AdminHeader: React.FC = () => {
   const [isCashFlowOpen, setIsCashFlowOpen] = useState(false);
+  const [isTvConnectOpen, setIsTvConnectOpen] = useState(false);
   const {
     currentCashier,
     isOnline,
@@ -97,6 +100,16 @@ export const AdminHeader: React.FC = () => {
           <span>Cash Drawer</span>
         </button>
 
+        {/* Connect / Cast to TV Button */}
+        <button
+          onClick={() => setIsTvConnectOpen(true)}
+          title="Connect or Cast to Customer TV Display"
+          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center space-x-1.5 transition-colors cursor-pointer border border-slate-300"
+        >
+          <Cast className="w-3.5 h-3.5 text-emerald-700" />
+          <span className="hidden sm:inline">Cast TV</span>
+        </button>
+
         {/* Network & Offline Status Toggle */}
         <button
           onClick={() => setOnlineStatus(!isOnline)}
@@ -169,6 +182,11 @@ export const AdminHeader: React.FC = () => {
         onClose={() => setIsCashFlowOpen(false)}
         cashierId={currentCashier.id}
         cashierName={currentCashier.name}
+      />
+
+      <TvConnectModal
+        isOpen={isTvConnectOpen}
+        onClose={() => setIsTvConnectOpen(false)}
       />
     </header>
   );
