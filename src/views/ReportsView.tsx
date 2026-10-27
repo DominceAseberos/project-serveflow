@@ -7,6 +7,7 @@ import { cashDrawerService } from '../services/cashDrawerService';
 import { orderRepository } from '../repositories/orderRepository';
 import { settingsRepository } from '../repositories/settingsRepository';
 import { ReceiptModal } from '../components/pos/ReceiptModal';
+import { ZReadingModal } from '../components/reports/ZReadingModal';
 import { Printer, TrendingUp, DollarSign, Wallet, FileText } from 'lucide-react';
 import type { Order, StoreSettings, AccountingSummary, CashDrawerSummary } from '../types';
 
@@ -16,6 +17,7 @@ export const ReportsView: React.FC = () => {
   const [cashDrawer, setCashDrawer] = useState<CashDrawerSummary | null>(null);
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<Order | null>(null);
+  const [showZReadingModal, setShowZReadingModal] = useState(false);
 
   const loadAllReports = async () => {
     const daily = await reportService.getDailyReport();
@@ -53,11 +55,11 @@ export const ReportsView: React.FC = () => {
         breadcrumbs={[{ label: 'Home' }, { label: 'Reports', active: true }]}
         actions={
           <button
-            onClick={() => window.print()}
+            onClick={() => setShowZReadingModal(true)}
             className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 shadow-sm cursor-pointer"
           >
             <Printer className="w-4 h-4" />
-            <span>Print Official Z-Reading</span>
+            <span>Official 80mm Z-Reading</span>
           </button>
         }
       />
@@ -308,6 +310,18 @@ export const ReportsView: React.FC = () => {
           order={selectedReceipt}
           settings={settings}
           onNewOrder={() => setSelectedReceipt(null)}
+        />
+      )}
+
+      {/* Official 80mm Z-Reading Modal */}
+      {showZReadingModal && (
+        <ZReadingModal
+          isOpen={showZReadingModal}
+          onClose={() => setShowZReadingModal(false)}
+          report={report}
+          accounting={accounting}
+          cashDrawer={cashDrawer}
+          settings={settings}
         />
       )}
     </div>

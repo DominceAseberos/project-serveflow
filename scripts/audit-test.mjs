@@ -1,5 +1,4 @@
 import puppeteer from 'puppeteer-core';
-import { spawn, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -7,84 +6,24 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const resultsDir = path.join(rootDir, 'audit-results');
+const docsDir = path.join(rootDir, 'docs', 'screenshots');
 
-if (!fs.existsSync(resultsDir)) {
-  fs.mkdirSync(resultsDir, { recursive: true });
-}
+if (!fs.existsSync(resultsDir)) fs.mkdirSync(resultsDir, { recursive: true });
+if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
 
 const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const DEFAULT_PORT = 4173;
+const TARGET_URL = 'http://localhost:5174';
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function cleanupPort(port) {
-  try {
-    const stdout = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { encoding: 'utf8' });
-    const lines = stdout.trim().split('\n');
-    for (const line of lines) {
-      const parts = line.trim().split(/\s+/);
-      const pid = parts[parts.length - 1];
-      if (pid && !isNaN(parseInt(pid, 10)) && parseInt(pid, 10) > 0) {
-        console.log(`[Port Clean] Freeing stale process ${pid} on port ${port}...`);
-        try {
-          execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
-        } catch (_) {}
-      }
-    }
-  } catch (_) {
-    // Port is free
-  }
-}
-
 async function runAudit() {
   console.log('======================================================');
-  console.log('🚀 SERVEFLOW POS: COMPREHENSIVE LIVE AUDIT & CLICK TESTING');
+  console.log('📸 SERVEFLOW POS: CAPTURING AUTHENTIC REAL UI SCREENSHOTS');
   console.log('======================================================');
 
-  cleanupPort(DEFAULT_PORT);
-
-  // Step 1: Start Vite preview server
-  console.log('\n[1/6] Launching Vite production preview server...');
-  const server = spawn('cmd.exe', ['/c', `npx vite preview --port ${DEFAULT_PORT}`], {
-    cwd: rootDir,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-
-  let serverUrl = `http://localhost:${DEFAULT_PORT}`;
-
-  const serverReadyPromise = new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      resolve(serverUrl);
-    }, 6000);
-
-    server.stdout.on('data', (data) => {
-      const text = data.toString();
-      const match = text.match(/http:\/\/localhost:(\d+)\/?/);
-      if (match) {
-        serverUrl = `http://localhost:${match[1]}`;
-        console.log(`[Preview Server] Online at: ${serverUrl}`);
-        clearTimeout(timer);
-        resolve(serverUrl);
-      }
-    });
-
-    server.stderr.on('data', (data) => {
-      console.warn(`[Preview Server Log] ${data.toString().trim()}`);
-    });
-
-    server.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-  });
-
-  await serverReadyPromise;
-  await sleep(1500);
-
-  // Step 2: Launch Headless Browser
-  console.log('[2/6] Connecting to Google Chrome engine...');
+  console.log(`[1/4] Connecting to Google Chrome engine at ${CHROME_PATH}...`);
   const browser = await puppeteer.launch({
     executablePath: CHROME_PATH,
     headless: 'new',
@@ -96,14 +35,20 @@ async function runAudit() {
   const consoleErrors = [];
 
   page.on('console', (msg) => {
-    if (msg.type() === 'error') {
-      consoleErrors.push(msg.text());
-    }
+    if (msg.type() === 'error') consoleErrors.push(msg.text());
   });
 
   page.on('pageerror', (err) => {
     consoleErrors.push(err.toString());
   });
+
+  async function capture(name) {
+    const rawPath = path.join(resultsDir, name);
+    const docPath = path.join(docsDir, name);
+    await page.screenshot({ path: rawPath });
+    fs.copyFileSync(rawPath, docPath);
+    console.log(`  📸 Captured: ${name}`);
+  }
 
   // Safe navigation helper
   async function navigateTo(viewName) {
@@ -113,7 +58,7 @@ async function runAudit() {
       const text = await page.evaluate((el) => el.textContent, b);
       if (text && text.includes('Exit Kiosk')) {
         await b.click();
-        await sleep(600);
+        await sleep(500);
         break;
       }
     }
@@ -123,7 +68,7 @@ async function runAudit() {
       const text = await page.evaluate((el) => el.textContent, btn);
       if (text && text.trim().startsWith(viewName)) {
         await btn.click();
-        await sleep(700);
+        await sleep(800);
         return true;
       }
     }
@@ -131,362 +76,313 @@ async function runAudit() {
   }
 
   try {
-    // Step 3: Navigate to live app
-    console.log(`[3/6] Navigating to ${serverUrl}...`);
-    await page.goto(serverUrl, { waitUntil: 'networkidle0', timeout: 20000 });
+    console.log(`[2/4] Navigating to ${TARGET_URL}...`);
+    await page.goto(TARGET_URL, { waitUntil: 'networkidle0', timeout: 20000 });
     await sleep(2000); // Allow IndexedDB initial seeding to settle
 
-    // Screenshot 01: Initial POS Screen
-    await page.screenshot({ path: path.join(resultsDir, '01_initial_pos_screen.png') });
-    console.log('  ✓ Initial POS screen loaded and rendered.');
+    // 1. Initial POS Screen
+    await capture('01_initial_pos_screen.png');
 
-    // ----------------------------------------------------
-    // TEST 1: CATEGORY FILTERING & SEARCH
-    // ----------------------------------------------------
-    console.log('\n[TEST 1] Testing POS category pills & search...');
+    // 2. Category Filter & Search
+    console.log('\n--- Step 1: Category Filter & Search ---');
     const catButtons = await page.$$('button');
     for (const btn of catButtons) {
       const text = await page.evaluate((el) => el.textContent, btn);
       if (text && text.includes('Pastries & Bakes')) {
         await btn.click();
-        await sleep(400);
-        console.log('  ✓ Clicked "Pastries & Bakes" category filter.');
+        await sleep(500);
         break;
       }
     }
+    await capture('02_search_filter.png');
 
-    const searchInput = await page.$('input[placeholder*="Search"]');
-    if (searchInput) {
-      await searchInput.type('Croissant');
-      await sleep(400);
-      console.log('  ✓ Typed "Croissant" into search box.');
-      await page.screenshot({ path: path.join(resultsDir, '02_search_filter.png') });
-
-      // Cleanly clear search in React state
-      await page.evaluate((el) => {
-        el.value = '';
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      }, searchInput);
-      await sleep(400);
-    }
-
-    // Reset filter to All Items
+    // Reset Category to "All Items"
     const allBtns = await page.$$('button');
     for (const btn of allBtns) {
       const text = await page.evaluate((el) => el.textContent, btn);
       if (text && text.includes('All Items')) {
         await btn.click();
-        await sleep(300);
-        console.log('  ✓ Reset category filter to "All Items".');
+        await sleep(500);
         break;
       }
     }
 
-    // ----------------------------------------------------
-    // TEST 2: CART OPERATIONS & CASH CHECKOUT
-    // ----------------------------------------------------
-    console.log('\n[TEST 2] Testing Add-to-Cart, Quantities, & Payment...');
-    const productCards = await page.$$('.group.relative');
-    console.log(`  ✓ Detected ${productCards.length} product items in menu.`);
-
-    if (productCards.length >= 2) {
-      await productCards[0].click(); // Item 1
-      await sleep(300);
-      await productCards[1].click(); // Item 2
-      await sleep(300);
-      console.log('  ✓ Clicked and added 2 menu items to cart.');
+    // 3. Add Items to Cart, Modifiers, Senior/PWD legal discount
+    console.log('\n--- Step 2: Populating Cart & Legal Discounts ---');
+    const addButtons = await page.$$('button[title="Add item to current order"]');
+    console.log(`  Found ${addButtons.length} product add buttons.`);
+    if (addButtons.length >= 2) {
+      await addButtons[0].click(); // Spanish Latte
+      await sleep(400);
+      await addButtons[1].click(); // Caramel Macchiato or Croissant
+      await sleep(400);
     }
 
-    // Fill Guest Name & Table Number
+    // Add note/modifier to first item
+    const noteBtns = await page.$$('button');
+    for (const btn of noteBtns) {
+      const text = await page.evaluate((el) => el.textContent, btn);
+      if (text && text.includes('+ Add Note / Modifier')) {
+        await btn.click();
+        await sleep(300);
+        break;
+      }
+    }
+
+    // Select modifier pills in modifier popup
+    const modPills = await page.$$('button');
+    for (const p of modPills) {
+      const text = await page.evaluate((el) => el.textContent, p);
+      if (text && (text.includes('Oat Milk Sub') || text.includes('Extra Shot'))) {
+        await p.click();
+        await sleep(200);
+      }
+    }
+
+    // Click "Save Note"
+    const saveBtns = await page.$$('button');
+    for (const b of saveBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
+      if (text && text.includes('Save Note')) {
+        await b.click();
+        await sleep(300);
+        break;
+      }
+    }
+
+    // Fill Guest Name & Table Identifier
     const guestInput = await page.$('input[placeholder="Guest Name"]');
     if (guestInput) {
-      await guestInput.type('Auditor Helena');
-      console.log('  ✓ Entered guest name: Auditor Helena.');
+      await guestInput.type('Engr. Helena Valderama');
     }
 
     const tableInput = await page.$('input[placeholder*="Table"]');
     if (tableInput) {
-      await tableInput.type('T-04');
-      console.log('  ✓ Entered table identifier: T-04.');
+      await tableInput.type('T-04 (Patio)');
     }
 
-    // Apply 10% Member discount
+    // Select 20% Senior Citizen / PWD (RA 9994)
     const discountSelect = await page.$('select');
     if (discountSelect) {
-      await discountSelect.select('member');
-      await sleep(300);
-      console.log('  ✓ Applied 10% Member discount.');
+      await discountSelect.select('senior_pwd');
+      await sleep(400);
     }
 
-    await page.screenshot({ path: path.join(resultsDir, '03_cart_configured.png') });
+    // Type OSCA / PWD ID
+    const oscaInput = await page.$('input[placeholder*="OSCA ID"]');
+    if (oscaInput) {
+      await oscaInput.type('OSCA-DVO-99214');
+      await sleep(300);
+    }
 
-    // Click Pay button to trigger Payment Modal
-    const cartButtons = await page.$$('button');
-    for (const btn of cartButtons) {
-      const text = await page.evaluate((el) => el.textContent, btn);
+    await capture('03_cart_configured.png');
+
+    // 4. Trigger Payment Modal
+    console.log('\n--- Step 3: Payment Modal & Touchscreen Bills ---');
+    const payBtns = await page.$$('button');
+    for (const b of payBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
       if (text && text.startsWith('Pay ₱')) {
-        await btn.click();
+        await b.click();
         await sleep(600);
-        console.log(`  ✓ Triggered Checkout Modal via "${text.trim()}".`);
         break;
       }
     }
 
-    await page.screenshot({ path: path.join(resultsDir, '04_payment_modal.png') });
+    // In Payment Modal, tap the ₱1,000 Philippine Peso bill button!
+    const billBtns = await page.$$('button');
+    for (const b of billBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
+      if (text && text.trim() === '₱1,000') {
+        await b.click();
+        await sleep(500);
+        break;
+      }
+    }
 
-    // Confirm Payment in modal
-    const modalButtons = await page.$$('button');
-    for (const btn of modalButtons) {
-      const text = await page.evaluate((el) => el.textContent, btn);
+    await capture('04_payment_modal.png');
+
+    // 5. Complete Order and View 80mm Hardware Receipt Modal
+    console.log('\n--- Step 4: 80mm Hardware Receipt Modal ---');
+    const completeBtns = await page.$$('button');
+    for (const b of completeBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
       if (text && text.includes('Complete Order')) {
-        await btn.click();
-        await sleep(1000);
-        console.log('  ✓ Clicked "Complete Order". Order committed to IndexedDB!');
+        await b.click();
+        await sleep(800);
         break;
       }
     }
 
-    await page.screenshot({ path: path.join(resultsDir, '05_receipt_modal.png') });
+    await capture('05_receipt_modal.png');
 
-    // Start New Order to reset cart
-    const receiptButtons = await page.$$('button');
-    for (const btn of receiptButtons) {
-      const text = await page.evaluate((el) => el.textContent, btn);
+    // Start New Order to cleanly dismiss receipt modal
+    const startNewBtns = await page.$$('button');
+    for (const b of startNewBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
       if (text && text.includes('Start New Order')) {
-        await btn.click();
-        await sleep(500);
-        console.log('  ✓ Started New Order. POS cart cleanly reset.');
-        break;
-      }
-    }
-
-    // ----------------------------------------------------
-    // TEST 3: DISPATCH ORDER TO KITCHEN KDS
-    // ----------------------------------------------------
-    console.log('\n[TEST 3] Testing "Send Kitchen" Dispatch...');
-    const cards2 = await page.$$('.group.relative');
-    if (cards2.length >= 3) {
-      await cards2[2].click(); // Chicken Pesto Pasta or hot meal
-      await sleep(300);
-      console.log('  ✓ Added meal item to cart for Kitchen dispatch.');
-    }
-
-    const sendKitchenBtns = await page.$$('button');
-    for (const btn of sendKitchenBtns) {
-      const text = await page.evaluate((el) => el.textContent, btn);
-      if (text && text.includes('Send Kitchen')) {
-        await btn.click();
-        await sleep(1000);
-        console.log('  ✓ Dispatched order directly to kitchen KDS.');
-        break;
-      }
-    }
-
-    // Close kitchen receipt
-    const rBtns2 = await page.$$('button');
-    for (const btn of rBtns2) {
-      const text = await page.evaluate((el) => el.textContent, btn);
-      if (text && text.includes('Start New Order')) {
-        await btn.click();
+        await b.click();
         await sleep(500);
         break;
       }
     }
 
-    // ----------------------------------------------------
-    // TEST 3B: CASH DRAWER & PETTY CASH FLOW
-    // ----------------------------------------------------
-    console.log('\n[TEST 3B] Testing Cash Drawer & Petty Cash Management...');
-    const headerBtns = await page.$$('header button');
-    for (const btn of headerBtns) {
-      const text = await page.evaluate((el) => el.textContent, btn);
+    // 6. Cash Drawer & Shift Reconciliation Modal
+    console.log('\n--- Step 5: Cash Drawer Modal ---');
+    const drawerBtns = await page.$$('header button');
+    for (const b of drawerBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
       if (text && text.includes('Cash Drawer')) {
-        await btn.click();
+        await b.click();
         await sleep(600);
-        console.log('  ✓ Opened Cash Drawer & Float Management Modal.');
         break;
       }
     }
-
-    // Switch to Record Movement tab
-    const drawerTabs = await page.$$('button');
-    for (const btn of drawerTabs) {
-      const text = await page.evaluate((el) => el.textContent, btn);
-      if (text && text.includes('Record Movement')) {
-        await btn.click();
-        await sleep(400);
-        break;
-      }
-    }
+    await capture('15_cash_drawer_modal.png');
 
     // Close Cash Drawer modal
     const closeBtns = await page.$$('button');
-    for (const btn of closeBtns) {
-      const text = await page.evaluate((el) => el.textContent, btn);
-      if (text && text.trim() === 'Close') {
-        await btn.click();
-        await sleep(400);
-        console.log('  ✓ Verified Cash Drawer modal and closed.');
-        break;
-      }
-    }
-
-    // ----------------------------------------------------
-    // TEST 4: KITCHEN DISPLAY SYSTEM (KDS) LIFECYCLE
-    // ----------------------------------------------------
-    console.log('\n[TEST 4] Navigating to Kitchen KDS & advancing tickets...');
-    await navigateTo('Kitchen');
-    await page.screenshot({ path: path.join(resultsDir, '06_kitchen_kds_view.png') });
-    console.log('  ✓ Navigated to Kitchen Display System view.');
-
-    // Click "Start Preparing"
-    const kdsBtns = await page.$$('button');
-    for (const btn of kdsBtns) {
-      const text = await page.evaluate((el) => el.textContent, btn);
-      if (text && text.includes('Start Preparing')) {
-        await btn.click();
-        await sleep(600);
-        console.log('  ✓ Ticket advanced: "Start Preparing" (moved to Preparing column).');
-        break;
-      }
-    }
-
-    // Click "Mark Ready for Pickup"
-    const kdsBtns2 = await page.$$('button');
-    for (const btn of kdsBtns2) {
-      const text = await page.evaluate((el) => el.textContent, btn);
-      if (text && text.includes('Mark Ready for Pickup')) {
-        await btn.click();
-        await sleep(600);
-        console.log('  ✓ Ticket advanced: "Mark Ready for Pickup" (moved to Ready counter).');
-        break;
-      }
-    }
-
-    await page.screenshot({ path: path.join(resultsDir, '07_kds_ticket_ready.png') });
-
-    // ----------------------------------------------------
-    // TEST 5: TV DISPLAY VIEW
-    // ----------------------------------------------------
-    console.log('\n[TEST 5] Testing TV Customer Display Board...');
-    await navigateTo('TV Display');
-    await page.screenshot({ path: path.join(resultsDir, '08_tv_order_display.png') });
-    console.log('  ✓ TV Order Status Board verified with live clock and tickets.');
-
-    // Exit TV Kiosk back to main POS
-    const exitKioskBtn = await page.$('button');
-    for (const b of await page.$$('button')) {
+    for (const b of closeBtns) {
       const text = await page.evaluate((el) => el.textContent, b);
-      if (text && text.includes('Exit Kiosk')) {
+      if (text && text.includes('Close')) {
+        await b.click();
+        await sleep(400);
+        break;
+      }
+    }
+
+    // 7. Cast to TV Modal
+    console.log('\n--- Step 6: TV Connect / Cast Modal ---');
+    const castBtns = await page.$$('header button');
+    for (const b of castBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
+      if (text && text.includes('Cast TV')) {
         await b.click();
         await sleep(600);
-        console.log('  ✓ Exited TV Kiosk back to main POS.');
+        break;
+      }
+    }
+    await capture('16_tv_connect_modal.png');
+
+    // Close TV modal
+    const closeTvBtns = await page.$$('button');
+    for (const b of closeTvBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
+      if (text && text.includes('Close')) {
+        await b.click();
+        await sleep(400);
         break;
       }
     }
 
-    // ----------------------------------------------------
-    // TEST 6: ADMIN DASHBOARD AUDIT
-    // ----------------------------------------------------
-    console.log('\n[TEST 6] Testing AdminLTE Dashboard metrics & charts...');
-    await navigateTo('Admin');
-    await page.screenshot({ path: path.join(resultsDir, '09_admin_dashboard.png') });
-    console.log('  ✓ AdminLTE Dashboard loaded with live sales & order metrics.');
-
-    // ----------------------------------------------------
-    // TEST 7: INVENTORY & STOCK ADJUSTMENTS
-    // ----------------------------------------------------
-    console.log('\n[TEST 7] Testing Inventory catalog & stock adjustments...');
-    await navigateTo('Inventory');
-    await page.screenshot({ path: path.join(resultsDir, '10_inventory_table.png') });
-
-    // Open Adjust Stock Modal
-    const adjustBtns = await page.$$('button');
-    for (const btn of adjustBtns) {
-      const text = await page.evaluate((el) => el.textContent, btn);
-      if (text && text.includes('Adjust Stock')) {
-        await btn.click();
-        await sleep(500);
-        console.log('  ✓ Opened Stock Adjustment Modal.');
-        break;
-      }
+    // 8. Kitchen Display System (KDS) & Order Dispatch
+    console.log('\n--- Step 7: KDS Kitchen Display Tickets ---');
+    // Add 1 meal to cart and dispatch to kitchen
+    const addBtns2 = await page.$$('button[title="Add item to current order"]');
+    if (addBtns2.length >= 3) {
+      await addBtns2[2].click(); // Chicken Pesto Pasta
+      await sleep(400);
     }
-
-    // Confirm adjustment
-    const confirmAdjustBtns = await page.$$('button');
-    for (const btn of confirmAdjustBtns) {
-      const text = await page.evaluate((el) => el.textContent, btn);
-      if (text && text.includes('Confirm Adjustment')) {
-        await btn.click();
+    const sendKitchenBtns = await page.$$('button');
+    for (const b of sendKitchenBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
+      if (text && text.includes('Send Kitchen')) {
+        await b.click();
         await sleep(600);
-        console.log('  ✓ Stock adjustment committed to Dexie with audit trail.');
         break;
       }
     }
 
-    // ----------------------------------------------------
-    // TEST 8: OFFLINE SYNC QUEUE AUDIT
-    // ----------------------------------------------------
-    console.log('\n[TEST 8] Testing Offline Sync Queue Engine...');
+    await navigateTo('Kitchen');
+    await capture('06_kitchen_kds_view.png');
+
+    // Mark ticket ready
+    const readyBtns = await page.$$('button');
+    for (const b of readyBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
+      if (text && text.includes('Mark Ready for Pickup')) {
+        await b.click();
+        await sleep(600);
+        break;
+      }
+    }
+    await capture('07_kds_ticket_ready.png');
+
+    // 9. TV Display View (Customer Kiosk)
+    console.log('\n--- Step 8: TV Customer Display Kiosk ---');
+    await page.goto(`${TARGET_URL}/?view=tv`, { waitUntil: 'networkidle0' });
+    await sleep(1500);
+    await capture('08_tv_order_display.png');
+
+    // 10. AdminLTE Dashboard
+    console.log('\n--- Step 9: Admin Dashboard ---');
+    await page.goto(TARGET_URL, { waitUntil: 'networkidle0' });
+    await sleep(1000);
+    await navigateTo('Admin');
+    await capture('09_admin_dashboard.png');
+
+    // 11. Inventory Ledger
+    console.log('\n--- Step 10: Inventory Ledger ---');
+    await navigateTo('Inventory');
+    await capture('10_inventory_table.png');
+
+    // 12. Sync Queue
+    console.log('\n--- Step 11: Sync Queue ---');
     await navigateTo('Sync Queue');
-    await page.screenshot({ path: path.join(resultsDir, '11_sync_queue_before.png') });
-    console.log('  ✓ Sync Queue inspected (offline mutations staged).');
+    await capture('11_sync_queue_before.png');
 
-    // Click "Process Sync Queue"
-    const syncBtns = await page.$$('button');
-    for (const btn of syncBtns) {
-      const text = await page.evaluate((el) => el.textContent, btn);
-      if (text && text.includes('Process Sync Queue')) {
-        await btn.click();
-        await sleep(1500);
-        console.log('  ✓ Clicked "Process Sync Queue". Online sync cycle executed.');
+    const replayBtn = await page.$('button.bg-emerald-800');
+    if (replayBtn) {
+      await replayBtn.click();
+      await sleep(1200);
+    }
+    await capture('12_sync_queue_after.png');
+
+    // 13. Sales Reports & Official 80mm Z-Reading
+    console.log('\n--- Step 12: Sales Reports & Official Z-Reading ---');
+    await navigateTo('Reports');
+    await capture('13_sales_reports_zreading.png');
+
+    // Open Official 80mm Z-Reading Modal
+    const zBtns = await page.$$('button');
+    for (const b of zBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
+      if (text && text.includes('Official 80mm Z-Reading')) {
+        await b.click();
+        await sleep(600);
+        break;
+      }
+    }
+    await capture('17_zreading_slip_modal.png');
+
+    // Close Z-Reading modal
+    const closeZBtns = await page.$$('button');
+    for (const b of closeZBtns) {
+      const text = await page.evaluate((el) => el.textContent, b);
+      if (text && text.includes('Close')) {
+        await b.click();
+        await sleep(400);
         break;
       }
     }
 
-    await page.screenshot({ path: path.join(resultsDir, '12_sync_queue_after.png') });
-
-    // ----------------------------------------------------
-    // TEST 9: SALES REPORTS & Z-READING
-    // ----------------------------------------------------
-    console.log('\n[TEST 9] Testing Sales Reports & End-of-Day Z-Reading...');
-    await navigateTo('Reports');
-    await page.screenshot({ path: path.join(resultsDir, '13_sales_reports_zreading.png') });
-    console.log('  ✓ Reports & Official Z-Reading loaded and audited.');
-
-    // ----------------------------------------------------
-    // TEST 10: SETTINGS VIEW
-    // ----------------------------------------------------
-    console.log('\n[TEST 10] Testing Settings & Configuration...');
+    // 14. Settings View
+    console.log('\n--- Step 13: Settings View ---');
     await navigateTo('Settings');
-    await page.screenshot({ path: path.join(resultsDir, '14_settings_view.png') });
-    console.log('  ✓ Settings & Store Profile verified.');
+    await capture('14_settings_view.png');
 
-    // ----------------------------------------------------
-    // SUMMARY
-    // ----------------------------------------------------
     console.log('\n======================================================');
-    console.log('📊 AUDIT SUMMARY: ALL 10 TEST SUITES PASSED');
-    console.log('======================================================');
-    console.log(`Console Errors: ${consoleErrors.length}`);
+    console.log('✅ ALL SCREENSHOTS AUTHENTICALLY CAPTURED & SAVED');
+    console.log(`Total Console Errors: ${consoleErrors.length}`);
     if (consoleErrors.length > 0) {
-      console.warn('Errors encountered:', consoleErrors);
-    } else {
-      console.log('✓ Zero runtime errors or unhandled exceptions in browser.');
+      console.log('Console Errors:', consoleErrors);
     }
-    console.log(`✓ 14 high-resolution screenshot captures saved to: ${resultsDir}`);
-  } catch (error) {
-    console.error('❌ Audit failed:', error);
-    try {
-      await page.screenshot({ path: path.join(resultsDir, 'ERROR_state.png') });
-    } catch (_) {}
+    console.log('======================================================');
+
+  } catch (err) {
+    console.error('Audit test failed:', err);
   } finally {
     await browser.close();
-    try {
-      execSync(`taskkill /F /T /PID ${server.pid}`, { stdio: 'ignore' });
-    } catch (_) {}
-    console.log('\n[6/6] Browser and preview server safely stopped.');
   }
 }
 

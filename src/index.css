@@ -37,16 +37,80 @@
   }
 }
 
-/* AdminLTE Print Styles */
+/* ============================================================
+   THERMAL RECEIPT HARDWARE PRINT STYLES (80mm & 58mm ESC/POS)
+   Strict compliance with POS receipt hardware & thermal cutters
+   ============================================================ */
 @media print {
-  .no-print {
+  @page {
+    size: 80mm auto;
+    margin: 0mm !important;
+  }
+
+  html, body {
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app chrome, backdrop overlays, and buttons */
+  .no-print,
+  aside,
+  header,
+  nav,
+  button,
+  .modal-backdrop,
+  [role="dialog"] > div:first-child {
     display: none !important;
   }
-  .print-only {
-    display: block !important;
+
+  /* Hide root application elements outside the active receipt print container */
+  body > #root {
+    visibility: hidden !important;
   }
-  body {
-    background: white !important;
-    color: black !important;
+
+  /* Reveal only the dedicated thermal receipt container */
+  #thermal-receipt-printable,
+  #thermal-receipt-printable * {
+    visibility: visible !important;
+  }
+
+  #thermal-receipt-printable {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 72mm !important; /* Exact printable width of 80mm roll */
+    max-width: 72mm !important;
+    margin: 0 !important;
+    padding: 2mm 3mm 20mm 3mm !important; /* 20mm bottom clearance for auto-cutter knife */
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: "Courier New", Courier, monospace, "Lucida Console" !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* 58mm roll width mode */
+  body.print-58mm #thermal-receipt-printable {
+    width: 48mm !important;
+    max-width: 48mm !important;
+    font-size: 9.5px !important;
+  }
+
+  /* Pure monochrome 1-bit high-contrast rendering for thermal heads */
+  #thermal-receipt-printable * {
+    color: #000000 !important;
+    border-color: #000000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    background: transparent !important;
   }
 }

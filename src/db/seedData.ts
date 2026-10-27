@@ -246,13 +246,18 @@ export const INITIAL_SETTINGS: StoreSettings = {
   storeName: 'ServeFlow Café & Bakes',
   tagline: 'Craft Coffee • Fresh Bakes • Local-First',
   address: '104 Tech Boulevard, Poblacion, Davao City, Philippines',
-  tin: '123-456-789-000',
+  tin: '123-456-789-000 VAT',
   phone: '+63 (082) 298-5544',
   taxRate: 0.12,
   currencySymbol: '₱',
   receiptFooterMessage: 'Thank you for supporting your local cafe! Free Wi-Fi: ServeFlow-Guest / pass: ilovecoffee',
   autoPrintReceipt: true,
   cloudSyncUrl: 'https://api.serveflow.internal/v1/sync',
+  paperWidth: '80mm',
+  machineIdentificationNumber: 'MIN-2026-99824',
+  serialNumber: 'SF-POS-TRM-01',
+  permitNumber: 'FP-0226-098-76543-2026',
+  openCashDrawerOnReceipt: true,
 };
 
 export const INITIAL_CASH_MOVEMENTS: CashDrawerMovement[] = [

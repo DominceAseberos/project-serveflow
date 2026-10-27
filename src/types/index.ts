@@ -177,6 +177,11 @@ export interface StoreSettings {
   receiptFooterMessage: string;
   autoPrintReceipt: boolean;
   cloudSyncUrl: string;
+  paperWidth?: '80mm' | '58mm';
+  machineIdentificationNumber?: string;
+  serialNumber?: string;
+  permitNumber?: string;
+  openCashDrawerOnReceipt?: boolean;
 }
 
 export interface CashierSession {
